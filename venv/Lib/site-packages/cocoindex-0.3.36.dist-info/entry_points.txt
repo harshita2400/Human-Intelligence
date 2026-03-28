@@ -1,0 +1,2 @@
+[console_scripts]
+cocoindex=cocoindex.cli:cli
