@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, START, END
 from models import ErrorX
 from functions.clone import github_search_node, clone_repo_node
 from functions.analyze_surface import analyze_surface_node
+from functions.build_tree_node import build_tree_node
 
 load_dotenv()
 
@@ -18,14 +19,14 @@ def build_graph():
 
     graph.add_node("github_search", github_search_node)
     graph.add_node("clone_repo", clone_repo_node)
-    graph.add_node("chunk_and_store", chunk_and_store_node)   # your existing node
+    # graph.add_node("chunk_and_store", chunk_and_store_node)   # your existing node
     graph.add_node("build_tree", build_tree_node)             # your existing node
     graph.add_node("analyze_surface", analyze_surface_node)   # new
 
     graph.add_edge(START, "github_search")
     graph.add_edge("github_search", "clone_repo")
-    graph.add_edge("clone_repo", "chunk_and_store")
-    graph.add_edge("chunk_and_store", "build_tree")
+    # graph.add_edge("clone_repo", "chunk_and_store")
+    graph.add_edge("clone_repo", "build_tree")
     graph.add_edge("build_tree", "analyze_surface")           # new
     graph.add_edge("analyze_surface", END)
 

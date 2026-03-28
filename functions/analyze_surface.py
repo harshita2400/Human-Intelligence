@@ -13,8 +13,7 @@ _llm = ChatOpenAI(
 _structured_llm = _llm.with_structured_output(BugReport)
 
 # -------------------- PROMPT --------------------
-
-PROMPT_TEMPLATE = """
+PROMPT_TEMPLATE = '''
 You are an expert software system analyzer.
 
 Your task is NOT to generate bugs or code.
@@ -29,8 +28,8 @@ Your goal is to analyze the repository structure and identify:
 
 Project:
 
-{tree_structure}
 
+{tree_structure}
 ----------------------------------
 
 Instructions:
@@ -79,12 +78,13 @@ Output rules:
 - IGNORE non-relevant files
 
 Return ONLY structured output.
-"""
 
-# -------------------- NODE --------------------
+'''
+
+
 
 async def analyze_surface_node(state: ErrorX) -> dict:
-    tree_structure = state.get("tree_structure", "")
+    tree_structure = state.get("tree_structure", "")   # 👈 set by build_tree_node
     logs = state.get("logs", [])
     errors = state.get("errors", [])
 
@@ -97,11 +97,14 @@ async def analyze_surface_node(state: ErrorX) -> dict:
         prompt = PROMPT_TEMPLATE.format(tree_structure=tree_structure)
         response: BugReport = await _structured_llm.ainvoke(prompt)
 
-        logs = logs + [f"analyze_surface: mapped {sum(len(layer.items) for layer in [response.backend, response.frontend, response.database])} files across 3 layers"]
+        total_files = sum(
+            len(layer.items)
+            for layer in [response.backend, response.frontend, response.database]
+        )
 
         return {
             "bug_report": response.dict(),
-            "logs": logs,
+            "logs": logs + [f"analyze_surface: mapped {total_files} files across 3 layers"],
         }
 
     except Exception as e:
