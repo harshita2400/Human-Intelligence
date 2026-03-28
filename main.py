@@ -7,28 +7,33 @@ from langgraph.graph import StateGraph, START, END
 
 from models import ErrorX
 from functions.clone import github_search_node, clone_repo_node
+from functions.analyze_surface import analyze_surface_node
 
 load_dotenv()
 
 
 # -------------------- GRAPH --------------------
 def build_graph():
-
     graph = StateGraph(ErrorX)
 
     graph.add_node("github_search", github_search_node)
     graph.add_node("clone_repo", clone_repo_node)
+    graph.add_node("chunk_and_store", chunk_and_store_node)   # your existing node
+    graph.add_node("build_tree", build_tree_node)             # your existing node
+    graph.add_node("analyze_surface", analyze_surface_node)   # new
 
     graph.add_edge(START, "github_search")
     graph.add_edge("github_search", "clone_repo")
-    graph.add_edge("clone_repo", END)
+    graph.add_edge("clone_repo", "chunk_and_store")
+    graph.add_edge("chunk_and_store", "build_tree")
+    graph.add_edge("build_tree", "analyze_surface")           # new
+    graph.add_edge("analyze_surface", END)
 
     return graph.compile()
 
 
 # -------------------- MAIN --------------------
 async def main():
-
     graph = build_graph()
 
     result = await graph.ainvoke({
