@@ -4,13 +4,13 @@ from models import BugReport, ErrorX
 
 # -------------------- LLM --------------------
 
-_llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_KEY"),
-    temperature=0
-)
+llm = ChatOpenAI(          # ← now only runs when the function is called
+        model="gpt-4o-mini",
+        openai_api_key=os.environ.get("OPENAI_KEY"),
+        temperature=0.3,
+    )
 
-_structured_llm = _llm.with_structured_output(BugReport)
+_structured_llm = llm.with_structured_output(BugReport)
 
 # -------------------- PROMPT --------------------
 PROMPT_TEMPLATE = '''

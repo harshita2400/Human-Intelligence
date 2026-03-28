@@ -27,6 +27,7 @@ class ErrorX(TypedDict, total=False):
 
     tree_structure: str          # raw tree string from build_tree node
     bug_report: Dict[str, Any]   # serialized BugReport
+    injection_results: List[Dict[str, Any]]  # results from bug_injector_node
 
     logs: List[str]
     errors: List[str]
