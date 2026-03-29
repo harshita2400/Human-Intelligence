@@ -90,6 +90,8 @@ async def analyze_surface_node(state: ErrorX) -> dict:
 
     if not tree_structure:
         return {
+            **state,
+            "bug_report": {},
             "errors": errors + ["analyze_surface: tree_structure is empty or missing"],
         }
 
@@ -103,11 +105,14 @@ async def analyze_surface_node(state: ErrorX) -> dict:
         )
 
         return {
+            **state,
             "bug_report": response.dict(),
             "logs": logs + [f"analyze_surface: mapped {total_files} files across 3 layers"],
         }
 
     except Exception as e:
         return {
+            **state,
+            "bug_report": {},
             "errors": errors + [f"analyze_surface: {str(e)}"],
         }

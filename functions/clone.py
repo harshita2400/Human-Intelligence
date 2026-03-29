@@ -74,8 +74,9 @@ async def github_search_node(state: ErrorX) -> Dict[str, Any]:
 
     if not parsed_items:
         return {
-            "errors": ["No repositories found"],
-            "logs": ["MCP returned empty results"]
+            **state,
+            "errors": state.get("errors", []) + ["No repositories found"],
+            "logs": state.get("logs", []) + ["MCP returned empty results"]
         }
 
     # -------------------- RANK --------------------
@@ -89,10 +90,11 @@ async def github_search_node(state: ErrorX) -> Dict[str, Any]:
     selected = top_repos[0]
 
     return {
+        **state,
         "candidate_repos": top_repos,
         "selected_repo": selected,
         "github_link": selected.get("html_url", ""),
-        "logs": [f"Selected repo: {selected.get('html_url', '')}"]
+        "logs": state.get("logs", []) + [f"Selected repo: {selected.get('html_url', '')}"]
     }
 
 
@@ -103,14 +105,18 @@ def clone_repo_node(state: ErrorX) -> Dict[str, Any]:
 
     if not github_link:
         return {
-            "errors": ["No GitHub link found"]
+            **state,
+            "errors": state.get("errors", []) + ["No GitHub link found"]
         }
 
-    workspace = f"./workspace_{uuid.uuid4().hex[:6]}"
-    os.makedirs(workspace, exist_ok=True)
+    # 🔥 NEW STRUCTURE
+    workspace_id = uuid.uuid4().hex[:8]
+    base_workspace = os.path.join("workspaces", workspace_id)
 
-    repo_name = github_link.split("/")[-1]
-    repo_path = os.path.join(workspace, repo_name)
+    os.makedirs(base_workspace, exist_ok=True)
+
+    repo_name = github_link.rstrip("/").split("/")[-1]
+    repo_path = os.path.join(base_workspace, repo_name)
 
     try:
         subprocess.run(
@@ -119,12 +125,17 @@ def clone_repo_node(state: ErrorX) -> Dict[str, Any]:
         )
     except Exception as e:
         return {
-            "errors": [str(e)]
+            **state,
+            "errors": state.get("errors", []) + [str(e)]
         }
 
     return {
-        "workspace_path": workspace,
+        **state,
+        "workspace_id": workspace_id,                 # 🔥 useful for tracking
+        "workspace_path": base_workspace,             # 🔥 updated path
         "repo_path": repo_path,
         "cloned": True,
-        "logs": [f"Cloned repo to {repo_path}"]
+        "logs": state.get("logs", []) + [
+            f"Cloned repo to {repo_path}"
+        ]
     }

@@ -149,7 +149,7 @@ def _finalize_context_log(log_path: Path, succeeded: int, total: int) -> None:
 # Core per-file injection logic
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _inject_one_file(
+async def _inject_one_file(
     task: Dict[str, Any],
     repo_root: Path,
     injection_context: List[Dict],
@@ -215,7 +215,7 @@ ORIGINAL CODE:
 """
 
     try:
-        response = llm.invoke(prompt)
+        response = await llm.ainvoke(prompt)
         raw = response.content.strip()
     except Exception as exc:
         print(f"  [LLM ERROR] {exc}")
@@ -249,7 +249,7 @@ ORIGINAL CODE:
 # LangGraph node  –  drop this into your StateGraph
 # ─────────────────────────────────────────────────────────────────────────────
 
-def bug_injector_node(state: dict) -> dict:
+async def bug_injector_node(state: dict) -> dict:
     """
     ErrorX LangGraph node: inject bugs into every file listed in bug_report.
 
@@ -273,7 +273,10 @@ def bug_injector_node(state: dict) -> dict:
     errors:     list   = list(state.get("errors", []))
 
     repo_root = Path(repo_path)
-    log_path  = repo_root / "context" / "abcd.txt"
+    # Write context log to the project-level context/ directory
+    repo_name = repo_root.name
+    project_root = Path(__file__).resolve().parent.parent
+    log_path  = project_root / "context" / f"{repo_name}.txt"
 
     # ── validate & parse report ───────────────────────────────────────────────
     try:
@@ -304,26 +307,22 @@ def bug_injector_node(state: dict) -> dict:
 
     _init_context_log(log_path, repo_path, total)
 
-    # ── iterate ───────────────────────────────────────────────────────────────
-    injection_context: List[Dict] = []   # cross-file context threaded forward
-    all_results:       List[Dict] = []
+    # ── fire ALL injections concurrently ──────────────────────────────────────
+    import asyncio
 
-    for idx, task in enumerate(tasks, 1):
+    injection_context: List[Dict] = []   # empty — all tasks run in parallel
+
+    async def _run_task(idx: int, task: Dict) -> Dict:
         print(DASH)
         print(f"  Task {idx}/{total}")
+        return await _inject_one_file(task, repo_root, injection_context, llm)
 
-        result = _inject_one_file(task, repo_root, injection_context, llm)
-        all_results.append(result)
+    all_results = await asyncio.gather(
+        *[_run_task(idx, task) for idx, task in enumerate(tasks, 1)]
+    )
 
-        # Update cross-file context only on success/partial
-        if result.get("bug_summary"):
-            injection_context.append({
-                "layer":       result["layer"],
-                "file":        result["file"],
-                "bug_summary": result["bug_summary"],
-            })
-
-        # ── write incremental context log entry ───────────────────────────────
+    # ── write context log & state logs AFTER all tasks complete ────────────────
+    for idx, result in enumerate(all_results, 1):
         log_entry_lines = [
             DASH,
             f"[{idx}/{total}]  [{result['status'].upper()}]  {result['file']}  ({result['layer']})",
@@ -352,7 +351,6 @@ def bug_injector_node(state: dict) -> dict:
         log_entry_lines.append("")
         _append_context_log(log_path, "\n".join(log_entry_lines))
 
-        # Append to state logs
         status_tag = {"success": "✓", "failed": "✗", "skipped": "–"}.get(
             result["status"], "?"
         )

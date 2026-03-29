@@ -30,6 +30,7 @@ def build_tree_node(state: ErrorX) -> dict:
 
     if not repo_path or not os.path.exists(repo_path):
         return {
+            **state,
             "errors": errors + ["build_tree: repo_path is missing or does not exist"],
         }
 
@@ -37,10 +38,12 @@ def build_tree_node(state: ErrorX) -> dict:
 
     if not tree_structure:
         return {
+            **state,
             "errors": errors + ["build_tree: generated tree is empty"],
         }
 
     return {
+        **state,
         "tree_structure": tree_structure,
         "logs": logs + [f"build_tree: tree built from {repo_path}"],
     }
